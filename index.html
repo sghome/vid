@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Video con filtros y audio sincronizado</title>
+<style>
+    video {
+        width: 100%;
+        height: auto;
+    }
+</style>
+</head>
+<body>
+
+<video id="video" controls autoplay>
+    <source src="https://cdn.glitch.me/764bc5af-2031-4a40-82a5-7a4337618c33/y2.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+</video>
+
+<audio id="audio" controls autoplay loop>
+    <source src="https://cdn.glitch.global/764bc5af-2031-4a40-82a5-7a4337618c33/media-674193e0.mp3" type="audio/mp3">
+    Your browser does not support the audio tag.
+</audio>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.26/Tone.js"></script>
+<script>
+    const video = document.getElementById('video');
+    const audio = document.getElementById('audio');
+
+    // Inicializar Tone.js
+    Tone.start();
+
+    // Crear un objeto AnalyserNode para el análisis de audio
+    const audioContext = new AudioContext();
+    const analyser = audioContext.createAnalyser();
+    const source = audioContext.createMediaElementSource(audio);
+    source.connect(analyser);
+    analyser.connect(audioContext.destination);
+
+    // Configurar el análisis de audio
+    analyser.fftSize = 2048;
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+
+    // Definir la función para analizar y aplicar filtros
+    function aplicarFiltros() {
+        // Obtener datos de frecuencia del espectro de audio
+        analyser.getByteFrequencyData(dataArray);
+
+        // Aquí puedes implementar la lógica para aplicar los filtros al video
+        // según los datos de frecuencia del espectro de audio
+        // Por ejemplo, puedes mapear rangos de frecuencia a valores de filtro y aplicarlos al video
+
+        // Llama a esta función de nuevo en el siguiente frame de animación
+        requestAnimationFrame(aplicarFiltros);
+    }
+
+    // Reproducir video y audio al cargar la página
+    video.play();
+    audio.play();
+
+    // Aplicar filtros al video
+    aplicarFiltros();
+</script>
+
+</body>
+</html>
