@@ -11,7 +11,7 @@
     <canvas id="canvas"></canvas>
 
     <script>
-        document.addEventListener("DOMContentLoaded", function() {
+        document.addEventListener("DOMContentLoaded", function () {
             let audio, audioContext, audioSrc;
             let analyser, analyserBufferLength;
             let fftSize = 8192;
@@ -144,7 +144,7 @@
                     return [0, 0];
                 }
 
-                for (let [id, t] of touches ) {
+                for (let [id, t] of touches) {
                     const result = [dpr * t.clientX, dpr * (innerHeight - t.clientY)];
                     return result;
                 }
@@ -235,9 +235,15 @@
 
             animate(); // Inicia la animación
 
+            // Función para interactuar con el archivo MIDI y actualizar el shader
+            function interactWithMidi() {
+                // Aquí puedes agregar la lógica para interactuar con el archivo MIDI
+                // y actualizar los parámetros del shader según los acordes y el tempo
+            }
+
             // Resto del código...
 
-            document.body.addEventListener('click', function() {
+            document.body.addEventListener('click', function () {
                 initAudio();
             });
         });
