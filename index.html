@@ -5,25 +5,25 @@
     <meta charset="UTF-8">
     <title>Audio Visualization</title>
     <script src="https://cdn.jsdelivr.net/npm/@tonejs/midi@2.0.28/build/Midi.min.js"></script>
-    
 </head>
 
 <body>
     <canvas id="canvas"></canvas>
 
     <script>
-        let audio, audioContext, audioSrc;
-        let analyser, analyserBufferLength;
-        let fftSize = 8192;
-        let smoothingTimeConstant = 0.65;
-        let audioAmplitude;
+        document.addEventListener("DOMContentLoaded", function() {
+            let audio, audioContext, audioSrc;
+            let analyser, analyserBufferLength;
+            let fftSize = 8192;
+            let smoothingTimeConstant = 0.65;
+            let audioAmplitude;
 
-        const glCanvas = document.getElementById('canvas');
-        const gl = glCanvas.getContext('webgl2');
-        const dpr = Math.max(.5, .5 * window.devicePixelRatio);
-        const touches = new Map();
+            const glCanvas = document.getElementById('canvas');
+            const gl = glCanvas.getContext('webgl2');
+            const dpr = Math.max(.5, .5 * window.devicePixelRatio);
+            const touches = new Map();
 
-        const vertexSource = `#version 300 es
+            const vertexSource = `#version 300 es
             precision highp float;
             in vec2 position;
             uniform float audioAmplitude;
@@ -34,7 +34,7 @@
             }
         `;
 
-        const fragmentSource = `#version 300 es
+            const fragmentSource = `#version 300 es
             precision highp float;
             out vec4 fragColor;
             uniform vec2 resolution;
@@ -54,190 +54,194 @@
             }
         `;
 
-        let time;
-        let buffer;
-        let program;
-        let touchLoc;
-        let resolutionLoc;
-        let pointerCountLoc;
-        let vertices = [];
-        let touching = false;
+            let time;
+            let buffer;
+            let program;
+            let touchLoc;
+            let resolutionLoc;
+            let pointerCountLoc;
+            let vertices = [];
+            let touching = false;
 
-        let midiInfo; // Variable para almacenar información del MIDI
+            let midiInfo; // Variable para almacenar información del MIDI
 
-        async function loadAndProcessMidi(midiFilePath) {
-            const response = await fetch(midiFilePath);
-            const midiData = await response.arrayBuffer();
-            const midi = new Midi(midiData);
+            async function loadAndProcessMidi(midiFilePath) {
+                const response = await fetch(midiFilePath);
+                const midiData = await response.arrayBuffer();
+                const midi = new Midi(midiData);
 
-            // Guarda la información del MIDI para su uso posterior
-            midiInfo = {
-                chords: midi.tracks[0].notes.map((note) => note.name),
-                tempo: midi.header.tempos[0].bpm,
-                // Puedes agregar más propiedades según sea necesario
-            };
-
-            // Resto de la función...
-        }
-
-        function setup() {
-            const vs = gl.createShader(gl.VERTEX_SHADER);
-            const fs = gl.createShader(gl.FRAGMENT_SHADER);
-
-            program = gl.createProgram();
-
-            compile(vs, vertexSource);
-            compile(fs, fragmentSource);
-
-            gl.attachShader(program, vs);
-            gl.attachShader(program, fs);
-            gl.linkProgram(program);
-
-            if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-                console.error(gl.getProgramInfoLog(program));
-            }
-
-            vertices = [-1.0, -1.0, 1.0, -1.0, -1.0, 1.0, -1.0, 1.0, 1.0, -1.0, 1.0, 1.0];
-
-            buffer = gl.createBuffer();
-
-            gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
-
-            const position = gl.getAttribLocation(program, "position");
-
-            gl.enableVertexAttribArray(position);
-            gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 0, 0);
-
-            time = gl.getUniformLocation(program, "time");
-            touchLoc = gl.getUniformLocation(program, "touch");
-            pointerCountLoc = gl.getUniformLocation(program, "pointerCount");
-            resolutionLoc = gl.getUniformLocation(program, "resolution");
-        }
-
-        function compile(shader, source) {
-            gl.shaderSource(shader, source);
-            gl.compileShader(shader);
-
-            if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-                console.error(gl.getShaderInfoLog(shader));
-            }
-        }
-
-        function draw(now) {
-            gl.clearColor(0, 0, 0, 1);
-            gl.clear(gl.COLOR_BUFFER_BIT);
-
-            gl.useProgram(program);
-            gl.bindBuffer(gl.ARRAY_BUFFER, null);
-            gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-
-            gl.uniform1f(time, now * 0.001);
-            gl.uniform2f(touchLoc, ...getTouches());
-            gl.uniform1i(pointerCountLoc, touches.size);
-            gl.uniform2f(resolutionLoc, glCanvas.width, glCanvas.height);
-            gl.drawArrays(gl.TRIANGLES, 0, vertices.length * 0.5);
-        }
-
-        function getTouches() {
-            if (!touches.size) {
-                return [0, 0];
-            }
-
-            for (let [id, t] of touches) {
-                const result = [dpr * t.clientX, dpr * (innerHeight - t.clientY)];
-                return result;
-            }
-        }
-
-        function loop(now) {
-            draw(now);
-            requestAnimationFrame(loop);
-        }
-
-        function init() {
-            setup();
-            resize();
-            loop(0);
-
-            document.cookie = "parking_session=value; samesite=None; secure";
-            document.body.addEventListener('click', initAudio);
-        }
-
-        async function initAudio() {
-            const video = document.createElement('video');
-            video.src = 'https://cdn.glitch.me/764bc5af-2031-4a40-82a5-7a4337618c33/y2.mp4';
-            video.crossOrigin = 'anonymous';
-            video.autoplay = true;
-            video.loop = true;
-            video.muted = true; // Asegúrate de que el video esté silenciado para evitar problemas de reproducción automática
-
-            // Añade el video al documento
-            document.body.appendChild(video);
-
-            // Espera a que se cargue el video y comience la reproducción antes de configurar el analizador
-            await new Promise(resolve => {
-                video.onloadedmetadata = () => {
-                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                    analyser = audioContext.createAnalyser();
-                    analyser.connect(audioContext.destination);
-                    analyser.smoothingTimeConstant = smoothingTimeConstant;
-                    analyser.fftSize = fftSize;
-                    analyserBufferLength = analyser.frequencyBinCount;
-
-                    audioSrc = audioContext.createMediaElementSource(video);
-                    audioSrc.connect(analyser);
-
-                    // Resuelve la promesa una vez que el video está listo
-                    resolve();
+                // Guarda la información del MIDI para su uso posterior
+                midiInfo = {
+                    chords: midi.tracks[0].notes.map((note) => note.name),
+                    tempo: midi.header.tempos[0].bpm,
+                    // Puedes agregar más propiedades según sea necesario
                 };
+
+                // Resto de la función...
+            }
+
+            function setup() {
+                const vs = gl.createShader(gl.VERTEX_SHADER);
+                const fs = gl.createShader(gl.FRAGMENT_SHADER);
+
+                program = gl.createProgram();
+
+                compile(vs, vertexSource);
+                compile(fs, fragmentSource);
+
+                gl.attachShader(program, vs);
+                gl.attachShader(program, fs);
+                gl.linkProgram(program);
+
+                if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+                    console.error(gl.getProgramInfoLog(program));
+                }
+
+                vertices = [-1.0, -1.0, 1.0, -1.0, -1.0, 1.0, -1.0, 1.0, 1.0, -1.0, 1.0, 1.0];
+
+                buffer = gl.createBuffer();
+
+                gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+
+                const position = gl.getAttribLocation(program, "position");
+
+                gl.enableVertexAttribArray(position);
+                gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 0, 0);
+
+                time = gl.getUniformLocation(program, "time");
+                touchLoc = gl.getUniformLocation(program, "touch");
+                pointerCountLoc = gl.getUniformLocation(program, "pointerCount");
+                resolutionLoc = gl.getUniformLocation(program, "resolution");
+            }
+
+            function compile(shader, source) {
+                gl.shaderSource(shader, source);
+                gl.compileShader(shader);
+
+                if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+                    console.error(gl.getShaderInfoLog(shader));
+                }
+            }
+
+            function draw(now) {
+                gl.clearColor(0, 0, 0, 1);
+                gl.clear(gl.COLOR_BUFFER_BIT);
+
+                gl.useProgram(program);
+                gl.bindBuffer(gl.ARRAY_BUFFER, null);
+                gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+
+                gl.uniform1f(time, now * 0.001);
+                gl.uniform2f(touchLoc, ...getTouches());
+                gl.uniform1i(pointerCountLoc, touches.size);
+                gl.uniform2f(resolutionLoc, glCanvas.width, glCanvas.height);
+                gl.drawArrays(gl.TRIANGLES, 0, vertices.length * 0.5);
+            }
+
+            function getTouches() {
+                if (!touches.size) {
+                    return [0, 0];
+                }
+
+                for (let [id, t] of touches ) {
+                    const result = [dpr * t.clientX, dpr * (innerHeight - t.clientY)];
+                    return result;
+                }
+            }
+
+            function loop(now) {
+                draw(now);
+                requestAnimationFrame(loop);
+            }
+
+            function init() {
+                setup();
+                resize();
+                loop(0);
+
+                document.cookie = "parking_session=value; samesite=None; secure";
+                document.body.addEventListener('click', initAudio);
+            }
+
+            async function initAudio() {
+                const video = document.createElement('video');
+                video.src = 'https://cdn.glitch.me/764bc5af-2031-4a40-82a5-7a4337618c33/y2.mp4';
+                video.crossOrigin = 'anonymous';
+                video.autoplay = true;
+                video.loop = true;
+                video.muted = true; // Asegúrate de que el video esté silenciado para evitar problemas de reproducción automática
+
+                // Añade el video al documento
+                document.body.appendChild(video);
+
+                // Espera a que se cargue el video y comience la reproducción antes de configurar el analizador
+                await new Promise(resolve => {
+                    video.onloadedmetadata = () => {
+                        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                        analyser = audioContext.createAnalyser();
+                        analyser.connect(audioContext.destination);
+                        analyser.smoothingTimeConstant = smoothingTimeConstant;
+                        analyser.fftSize = fftSize;
+                        analyserBufferLength = analyser.frequencyBinCount;
+
+                        audioSrc = audioContext.createMediaElementSource(video);
+                        audioSrc.connect(analyser);
+
+                        // Resuelve la promesa una vez que el video está listo
+                        resolve();
+                    };
+                });
+
+                await loadAndProcessMidi('https://sghome.github.io/mp3/go.mid');
+                document.body.removeEventListener('click', initAudio);
+            }
+
+            // Función para obtener el color según la amplitud del audio
+            function getColorFromAmplitude(audioAmplitude) {
+                // Implementa la lógica para determinar el color según la amplitud aquí
+                // Por ejemplo:
+                const red = audioAmplitude;
+                const green = 1 - audioAmplitude;
+                const blue = 0.5;
+                return [red, green, blue];
+            }
+
+            function animate() {
+                if (!analyser) return; // Asegúrate de que el analizador esté definido antes de usarlo
+
+                const dataArray = new Uint8Array(analyserBufferLength);
+                analyser.getByteFrequencyData(dataArray);
+
+                // Normaliza la amplitud del audio entre 0 y 1
+                const audioAmplitude = dataArray.reduce((a, b) => a + b, 0) / (analyserBufferLength * 255);
+
+                // Actualiza los valores en el shader según la amplitud del audio
+                gl.uniform1f(gl.getUniformLocation(program, "audioAmplitude"), audioAmplitude);
+
+                // Modifica la posición y escala de los elementos según la amplitud
+                gl.uniform2f(gl.getUniformLocation(program, "offset"), audioAmplitude * 2.0, audioAmplitude * 2.0);
+                gl.uniform1f(gl.getUniformLocation(program, "scale"), 1.0 + audioAmplitude);
+
+                // Cambia el color en función de la amplitud
+                const color = getColorFromAmplitude(audioAmplitude);
+                gl.uniform3f(gl.getUniformLocation(program, "color"), color[0], color[1], color[2]);
+
+                // Puedes agregar aquí la lógica para interactuar con el MIDI y actualizar el shader
+                interactWithMidi();
+
+                requestAnimationFrame(animate);
+            }
+
+            animate(); // Inicia la animación
+
+            // Resto del código...
+
+            document.body.addEventListener('click', function() {
+                initAudio();
             });
-
-            await loadAndProcessMidi('https://sghome.github.io/mp3/go.mid');
-            document.body.removeEventListener('click', initAudio);
-        }
-
-        // Función para obtener el color según la amplitud del audio
-        function getColorFromAmplitude(audioAmplitude) {
-            // Implementa la lógica para determinar el color según la amplitud aquí
-            // Por ejemplo:
-            const red = audioAmplitude;
-            const green = 1 - audioAmplitude;
-            const blue = 0.5;
-            return [red, green, blue];
-        }
-
-        function animate() {
-            if (!analyser) return; // Asegúrate de que el analizador esté definido antes de usarlo
-
-            const dataArray = new Uint8Array(analyserBufferLength);
-            analyser.getByteFrequencyData(dataArray);
-
-            // Normaliza la amplitud del audio entre 0 y 1
-            const audioAmplitude = dataArray.reduce((a, b) => a + b, 0) / (analyserBufferLength * 255);
-
-            // Actualiza los valores en el shader según la amplitud del audio
-            gl.uniform1f(gl.getUniformLocation(program, "audioAmplitude"), audioAmplitude);
-
-            // Modifica la posición y escala de los elementos según la amplitud
-            gl.uniform2f(gl.getUniformLocation(program, "offset"), audioAmplitude * 2.0, audioAmplitude * 2.0);
-            gl.uniform1f(gl.getUniformLocation(program, "scale"), 1.0 + audioAmplitude);
-
-            // Cambia el color en función de la amplitud
-            const color = getColorFromAmplitude(audioAmplitude);
-            gl.uniform3f(gl.getUniformLocation(program, "color"), color[0], color[1], color[2]);
-
-            // Puedes agregar aquí la lógica para interactuar con el MIDI y actualizar el shader
-            interactWithMidi();
-
-            requestAnimationFrame(animate);
-        }
-
-        animate(); // Inicia la animación
-
-        // Resto del código...
+        });
     </script>
 </body>
 
 </html>
-
