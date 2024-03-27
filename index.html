@@ -6,6 +6,10 @@
 <title>Video con filtros y audio sincronizado</title>
 <style>
     video {
+        display: none; /* Ocultar el video original */
+    }
+    canvas {
+        display: block;
         width: 100%;
         height: auto;
     }
@@ -23,10 +27,14 @@
     Your browser does not support the audio tag.
 </audio>
 
+<canvas id="canvas"></canvas>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.26/Tone.js"></script>
 <script>
     const video = document.getElementById('video');
     const audio = document.getElementById('audio');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
 
     // Inicializar Tone.js
     Tone.start();
@@ -43,24 +51,39 @@
     const bufferLength = analyser.frequencyBinCount;
     const dataArray = new Uint8Array(bufferLength);
 
-    // Definir la función para analizar y aplicar filtros
+    // Reproducir video y audio al cargar la página
+    video.play();
+    audio.play();
+
+    // Aplicar filtros al video según el análisis de audio
     function aplicarFiltros() {
         // Obtener datos de frecuencia del espectro de audio
         analyser.getByteFrequencyData(dataArray);
 
-        // Aquí puedes implementar la lógica para aplicar los filtros al video
-        // según los datos de frecuencia del espectro de audio
-        // Por ejemplo, puedes mapear rangos de frecuencia a valores de filtro y aplicarlos al video
+        // Calcular un valor de filtro basado en los datos de frecuencia
+        const filterValue = calcularValorFiltro(dataArray);
+
+        // Aplicar el filtro al video (solo como ejemplo)
+        ctx.filter = `brightness(${filterValue}%)`;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
         // Llama a esta función de nuevo en el siguiente frame de animación
         requestAnimationFrame(aplicarFiltros);
     }
 
-    // Reproducir video y audio al cargar la página
-    video.play();
-    audio.play();
+    // Función para calcular un valor de filtro basado en los datos de frecuencia
+    function calcularValorFiltro(dataArray) {
+        // Aquí puedes implementar la lógica para calcular el valor del filtro
+        // según los datos de frecuencia del espectro de audio
+        // Por ejemplo, puedes mapear la intensidad del filtro según la energía de ciertas frecuencias
 
-    // Aplicar filtros al video
+        // Este es solo un ejemplo básico:
+        const sum = dataArray.reduce((acc, val) => acc + val, 0);
+        const average = sum / bufferLength;
+        return average / 2; // Dividir por 2 para ajustar el rango de valores
+    }
+
+    // Iniciar la aplicación de filtros
     aplicarFiltros();
 </script>
 
