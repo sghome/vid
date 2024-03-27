@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <title>Audio Visualization</title>
@@ -30,7 +29,6 @@
         }
     </style>
 </head>
-
 <body>
     <canvas id="canvas"></canvas>
 
@@ -209,161 +207,18 @@
             audioSrc.connect(analyser);
 
             await loadAndProcessMidi('https://sghome.github.io/mp3/go.mid');
-            animate(); // Inicia la animación aquí después de que se haya inicializado el analizador de audio
             document.body.removeEventListener('click', initAudio);
         }
 
-        document.body.onload = init;
-        window.onresize = resize;
-
-        function resize() {
-            const canvas = document.getElementById
-('canvas');
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            gl.viewport(0, 0, canvas.width, canvas.height);
+        // Función para obtener el color según la amplitud del audio
+        function getColorFromAmplitude(audioAmplitude) {
+            // Implementa la lógica para determinar el color según la amplitud aquí
+            // Por ejemplo:
+            const red = audioAmplitude;
+            const green = 1 - audioAmplitude;
+            const blue = 0.5;
+            return [red, green, blue];
         }
-
-        window.addEventListener('resize', resize);
-
-        glCanvas.onpointerdown = e => {
-            if (touches.size === 2) touches.clear();
-            touching = true;
-            touches.set(e.pointerId, e);
-        };
-
-        glCanvas.onpointermove = e => {
-            if (!touching) return;
-            touches.set(e.pointerId, e);
-        };
-
-        glCanvas.onpointerup = e => {
-            touching = false;
-            touches.clear();
-        };
-
-        glCanvas.onpointerout = e => {
-            if (touches.size === 2) return;
-            touching = false;
-            touches.clear();
-        };
-
-        document.documentElement.onkeyup = e => {
-            console.log(e.key);
-            if (e.key === "v") {
-                touches.set(1, { clientX: 100, clientY: 100 });
-                touches.set(2, { clientX: 200, clientY: 200 });
-            } else if (e.key === "g") {
-                touches.clear();
-            }
-        };
-
-        function animate() {
-            const dataArray = new Uint8Array(analyserBufferLength);
-            analyser.getByteFrequencyData(dataArray);
-
-            // Normaliza la amplitud del audio entre 0 y 1
-            const audioAmplitude = dataArray.reduce((a, b) => a + b, 0) / (analyserBufferLength * 255);
-
-            // Actualiza los valores en el shader según la amplitud del audio
-            gl.uniform1f(gl.getUniformLocation(program, "audioAmplitude"), audioAmplitude);
-
-            // Modifica la posición y escala de los elementos según la amplitud
-            gl.uniform2f(gl.getUniformLocation(program, "offset"), audioAmplitude * 2.0, audioAmplitude * 2.0);
-            gl.uniform1f(gl.getUniformLocation(program, "scale"), 1.0 + audioAmplitude);
-
-            // Cambia el color en función de la amplitud
-            const color = getColorFromAmplitude(audioAmplitude);
-            gl.uniform3f(gl.getUniformLocation(program, "color"), color[0], color[1], color[2]);
-
-            // Agrega efectos de sonido adicionales según la amplitud
-            playSoundEffect(audioAmplitude);
-
-            // Puedes agregar aquí la lógica para interactuar con el MIDI y actualizar el shader
-            interactWithMidi();
-
-            requestAnimationFrame(animate);
-        }
-
-        // Función para interactuar con el archivo MIDI y actualizar el shader
-        function interactWithMidi() {
-            const currentChordIndex = getCurrentChordIndex();
-            const currentChord = midiInfo.chords[currentChordIndex];
-
-            // Obtén el color asociado al acorde
-            const chordColor = chordToColor(currentChord);
-
-            // Pasa el color al shader
-            gl.uniform3f(gl.getUniformLocation(program, "color"), chordColor[0], chordColor[1], chordColor[2]);
-
-            // Ajusta la posición y escala de los elementos según la frecuencia del acorde
-            const chordFrequency = getChordFrequency(currentChord);
-            const positionScaleFactor = map(chordFrequency, 0, 1, 0.5, 2.0);
-            gl.uniform2f(gl.getUniformLocation(program, "offset"), audioAmplitude * positionScaleFactor, audioAmplitude * positionScaleFactor);
-            gl.uniform1f(gl.getUniformLocation(program, "scale"), 1.0 + audioAmplitude);
-
-            // Genera ritmo según el tempo del MIDI
-            const tempo = midiInfo.tempo;
-            const beatsPerMinute = tempo;
-            const beatsPerSecond = beatsPerMinute / 60;
-            const secondsPerBeat = 1 / beatsPerSecond;
-            const rhythmAmplitude = Math.sin(audioContext.currentTime * 2 * Math.PI * beatsPerSecond);
-
-            // Utiliza rhythmAmplitude para modular otras propiedades del shader
-            gl.uniform1f(gl.getUniformLocation(program, "rhythmAmplitude"), rhythmAmplitude);
-
-            // Puedes ajustar otras propiedades del shader según tu lógica
-            // por ejemplo, la intensidad de efectos visuales o la velocidad de animación
-            // gl.uniform1f(gl.getUniformLocation(program, "otraPropiedad"), rhythmAmplitude * 0.5);
-
-            // Puedes agregar más lógica según sea necesario
-        }
-
-        // Función para obtener el índice del acorde actual del MIDI
-        function getCurrentChordIndex() {
-            const currentTime = audioContext.currentTime;
-            const beatsPerMinute = midiInfo.tempo;
-            const beatsPerSecond = beatsPerMinute / 60;
-            const secondsPerBeat = 1 /
-('canvas');
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            gl.viewport(0, 0, canvas.width, canvas.height);
-        }
-
-        window.addEventListener('resize', resize);
-
-        glCanvas.onpointerdown = e => {
-            if (touches.size === 2) touches.clear();
-            touching = true;
-            touches.set(e.pointerId, e);
-        };
-
-        glCanvas.onpointermove = e => {
-            if (!touching) return;
-            touches.set(e.pointerId, e);
-        };
-
-        glCanvas.onpointerup = e => {
-            touching = false;
-            touches.clear();
-        };
-
-        glCanvas.onpointerout = e => {
-            if (touches.size === 2) return;
-            touching = false;
-            touches.clear();
-        };
-
-        document.documentElement.onkeyup = e => {
-            console.log(e.key);
-            if (e.key === "v") {
-                touches.set(1, { clientX: 100, clientY: 100 });
-                touches.set(2, { clientX: 200, clientY: 200 });
-            } else if (e.key === "g") {
-                touches.clear();
-            }
-        };
 
         function animate() {
             const dataArray = new Uint8Array(analyserBufferLength);
@@ -397,5 +252,4 @@
         // Resto del código...
     </script>
 </body>
-
 </html>
