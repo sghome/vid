@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <title>Audio Visualization</title>
@@ -29,6 +30,7 @@
         }
     </style>
 </head>
+
 <body>
     <canvas id="canvas"></canvas>
 
@@ -196,15 +198,23 @@
             // Añade el video al documento
             document.body.appendChild(video);
 
-            audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            analyser = audioContext.createAnalyser();
-            analyser.connect(audioContext.destination);
-            analyser.smoothingTimeConstant = smoothingTimeConstant;
-            analyser.fftSize = fftSize;
-            analyserBufferLength = analyser.frequencyBinCount;
+            // Espera a que se cargue el video y comience la reproducción antes de configurar el analizador
+            await new Promise(resolve => {
+                video.onloadedmetadata = () => {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    analyser = audioContext.createAnalyser();
+                    analyser.connect(audioContext.destination);
+                    analyser.smoothingTimeConstant = smoothingTimeConstant;
+                    analyser.fftSize = fftSize;
+                    analyserBufferLength = analyser.frequencyBinCount;
 
-            audioSrc = audioContext.createMediaElementSource(video);
-            audioSrc.connect(analyser);
+                    audioSrc = audioContext.createMediaElementSource(video);
+                    audioSrc.connect(analyser);
+
+                    // Resuelve la promesa una vez que el video está listo
+                    resolve();
+                };
+            });
 
             await loadAndProcessMidi('https://sghome.github.io/mp3/go.mid');
             document.body.removeEventListener('click', initAudio);
@@ -221,6 +231,8 @@
         }
 
         function animate() {
+            if (!analyser) return; // Asegúrate de que el analizador esté definido antes de usarlo
+
             const dataArray = new Uint8Array(analyserBufferLength);
             analyser.getByteFrequencyData(dataArray);
 
@@ -238,9 +250,6 @@
             const color = getColorFromAmplitude(audioAmplitude);
             gl.uniform3f(gl.getUniformLocation(program, "color"), color[0], color[1], color[2]);
 
-            // Agrega efectos de sonido adicionales según la amplitud
-            playSoundEffect(audioAmplitude);
-
             // Puedes agregar aquí la lógica para interactuar con el MIDI y actualizar el shader
             interactWithMidi();
 
@@ -252,4 +261,6 @@
         // Resto del código...
     </script>
 </body>
+
 </html>
+
