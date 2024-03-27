@@ -188,13 +188,42 @@
         }
 
         async function initAudio() {
+            const video = document.createElement('video');
+            video.src = 'https://cdn.glitch.me/764bc5af-2031-4a40-82a5-7a4337618c33/y2.mp4';
+            video.crossOrigin = 'anonymous';
+            video.autoplay = true;
+            video.loop = true;
+            video.muted = true; // Asegúrate de que el video esté silenciado para evitar problemas de reproducción automática
+
+            // Añade el video al documento
+            document.body.appendChild(video);
+
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            analyser = audioContext.createAnalyser();
+            analyser.connect(audioContext.destination);
+            analyser.smoothingTimeConstant = smoothingTimeConstant;
+            analyser.fftSize = fftSize;
+            analyserBufferLength = analyser.frequencyBinCount;
+
+            audioSrc = audioContext.createMediaElementSource(video);
+            audioSrc.connect(analyser);
+
             await loadAndProcessMidi('https://sghome.github.io/mp3/go.mid');
-            audioSetup('https://cdn.glitch.global/764bc5af-2031-4a40-82a5-7a4337618c33/media-674193e0.mp3');
             document.body.removeEventListener('click', initAudio);
         }
 
         document.body.onload = init;
         window.onresize = resize;
+
+        function resize() {
+            const canvas = document.getElementById
+('canvas');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            gl.viewport(0, 0, canvas.width, canvas.height);
+        }
+
+        window.addEventListener('resize', resize);
 
         glCanvas.onpointerdown = e => {
             if (touches.size === 2) touches.clear();
@@ -228,32 +257,6 @@
             }
         };
 
-        function audioSetup(url) {
-            audio = new Audio();
-            audio.src = url;
-            audio.controls = false;
-            audio.loop = true;
-            audio.autoplay = true;
-            audio.crossOrigin = 'anonymous';
-            audio.addEventListener('canplaythrough', audioLoaded, false);
-
-            audioContext = new (window.AudioContext || window.webkitAudioContext)();
-
-            analyser = audioContext.createAnalyser();
-            analyser.connect(audioContext.destination);
-            analyser.smoothingTimeConstant = smoothingTimeConstant;
-            analyser.fftSize = fftSize;
-            analyserBufferLength = analyser.frequencyBinCount;
-
-            audioSrc = audioContext.createMediaElementSource(audio);
-            audioSrc.connect(analyser);
-        }
-
-        function audioLoaded() {
-            audio.play();
-            animate();
-        }
-
         function animate() {
             const dataArray = new Uint8Array(analyserBufferLength);
             analyser.getByteFrequencyData(dataArray);
@@ -281,111 +284,10 @@
             requestAnimationFrame(animate);
         }
 
-        // Función para interactuar con el archivo MIDI y actualizar el shader
-        function interactWithMidi() {
-            const currentChordIndex = getCurrentChordIndex();
-            const currentChord = midiInfo.chords[currentChordIndex];
+        animate(); // Inicia la animación
 
-            // Obtén el color asociado al acorde
-            const chordColor = chordToColor(currentChord);
-
-            // Pasa el color al shader
-            gl.uniform3f(gl.getUniformLocation(program, "color"), chordColor[0], chordColor[1], chordColor[2]);
-
-            // Ajusta la posición y escala de los elementos según la frecuencia del acorde
-            const chordFrequency = getChordFrequency(currentChord);
-            const positionScaleFactor = map(chordFrequency, 0, 1, 0.5, 2.0);
-            gl.uniform2f(gl.getUniformLocation(program, "offset"), audioAmplitude * positionScaleFactor, audioAmplitude * positionScaleFactor);
-            gl.uniform1f(gl.getUniformLocation(program, "scale"), 1.0 + audioAmplitude);
-
-            // Genera ritmo según el tempo del MIDI
-            const tempo = midiInfo.tempo;
-            const beatsPerMinute = tempo;
-            const beatsPerSecond = beatsPerMinute / 60;
-            const secondsPerBeat = 1 / beatsPerSecond;
-            const rhythmAmplitude = Math.sin(audioContext.currentTime * 2 * Math.PI * beatsPerSecond);
-
-            // Utiliza rhythmAmplitude para modular otras propiedades del shader
-            gl.uniform1f(gl.getUniformLocation(program, "rhythmAmplitude"), rhythmAmplitude);
-
-            // Puedes ajustar otras propiedades del shader según tu lógica
-            // por ejemplo, la intensidad de efectos visuales o la velocidad de animación
-            // gl.uniform1f(gl.getUniformLocation(program, "otraPropiedad"), rhythmAmplitude * 0.5);
-
-            // Puedes agregar más lógica según sea necesario
-        }
-
-        // Función para obtener el índice del acorde actual del MIDI
-        function getCurrentChordIndex() {
-            const currentTime = audioContext.currentTime;
-            const beatsPerMinute = midiInfo.tempo;
-            const beatsPerSecond = beatsPerMinute / 60;
-            const secondsPerBeat = 1 / beatsPerSecond;
-            const totalBeats = currentTime / secondsPerBeat;
-
-            // Calcula el índice del acorde actual
-            const currentChordIndex = Math.floor(totalBeats) % midiInfo.chords.length;
-
-            return currentChordIndex;
-        }
-
-        // Función para convertir un acorde en un color RGB
-        function chordToColor(chord) {
-            // Lógica para asignar colores a los acordes
-            // Puedes usar el círculo de acordes o algún otro método
-            // Ajusta los valores de r, g, b según tu preferencia
-            const r = 1.0;
-            const g = 0.5;
-           
-const b = 0.2;
-
-            return [r, g, b];
-        }
-
-        // Función para obtener la frecuencia asociada a un acorde
-        function getChordFrequency(chord) {
-            // Lógica para determinar la frecuencia del acorde
-            // Puedes mapear los acordes a valores de frecuencia según tus preferencias
-            // Ajusta los valores según tu visión creativa
-            return map(chord.intensity, 0, 1, 0.2, 0.8);
-        }
-
-        // Función de mapeo para ajustar valores de un rango a otro
-        function map(value, inMin, inMax, outMin, outMax) {
-            return (value - inMin) * (outMax - outMin) / (inMax - inMin) + outMin;
-        }
-
-        // Función para obtener un color RGB a partir de la amplitud del audio
-        function getColorFromAmplitude(amplitude) {
-            // Ajusta los valores de color según la amplitud del audio
-            const r = 0.5 + amplitude * 0.5;
-            const g = 0.2 + amplitude * 0.8;
-            const b = 0.1 + amplitude * 0.9;
-
-            return [r, g, b];
-        }
-
-        // Función para reproducir efectos de sonido adicionales según la amplitud
-        function playSoundEffect(amplitude) {
-            // Ajusta la reproducción de efectos de sonido según la amplitud
-            const volume = amplitude * 2.0; // Ajusta el volumen según la amplitud
-
-            // Ejemplo: reproducir un efecto de sonido adicional
-            // Comenta o elimina la línea siguiente para evitar cargar el recurso específico
-            // if (volume > 0.5) {
-            //     playAdditionalSound('https://ejemplo.com/efecto-adicional.mp3', volume);
-            // }
-
-            // Puedes agregar más lógica y efectos de sonido según tus necesidades
-        }
-
-        // Función para reproducir un efecto de sonido adicional
-        function playAdditionalSound(url, volume) {
-            const additionalAudio = new Audio(url);
-            additionalAudio.volume = Math.min(1.0, volume); // Ajusta el volumen entre 0 y 1
-            additionalAudio.play();
-        }
+        // Resto del código...
     </script>
 </body>
-</html>
 
+</html>
